@@ -1,0 +1,268 @@
+{
+ "features": [
+  "ratio",
+  "slope15",
+  "slope45",
+  "slope120",
+  "churn",
+  "approaching",
+  "leaving",
+  "damped",
+  "speed",
+  "dwell",
+  "door_in",
+  "door_net",
+  "venue"
+ ],
+ "threshold": 0.9,
+ "lead_s": 120.0,
+ "model": "GradientBoostingClassifier, 250 trees of depth 3",
+ "trained_on": "60 random simulated afternoons (seeds 1000-1059)",
+ "validated_on": "24 random simulated afternoons (seeds 2100-2123), never trained on",
+ "rows": {
+  "train": 122705,
+  "validation": 47305
+ },
+ "validation": {
+  "roc_auc": 0.8599858447066402,
+  "average_precision": 0.3305170519815386,
+  "roc_auc_measured_on": "seeds 2000-2023",
+  "rule": {
+   "alerts": 22,
+   "false": 4,
+   "precision": 0.8181818181818182,
+   "events_warned": 17,
+   "recall": 0.7391304347826086,
+   "lead": {
+    "median": 28.399999999998386,
+    "p10": 3.2399999999998164,
+    "p90": 154.6199999999924,
+    "n": 17
+   },
+   "f1": 0.7766497461928934
+  },
+  "chosen": {
+   "threshold": 0.9,
+   "f1": 0.7444029850746269,
+   "alerts": 31,
+   "false": 10,
+   "precision": 0.6774193548387096,
+   "events_warned": 19,
+   "recall": 0.8260869565217391,
+   "lead": {
+    "median": 37.200000000001154,
+    "p10": 7.0200000000012155,
+    "p90": 174.22000000002325,
+    "n": 19
+   }
+  },
+  "curve": [
+   {
+    "threshold": 0.5,
+    "f1": 0.6829268292682926,
+    "alerts": 44,
+    "false": 20,
+    "precision": 0.5454545454545454,
+    "events_warned": 21,
+    "recall": 0.9130434782608695,
+    "lead": {
+     "median": 44.50000000001012,
+     "p10": 14.699999999999164,
+     "p90": 192.70000000002526,
+     "n": 21
+    }
+   },
+   {
+    "threshold": 0.6,
+    "f1": 0.6703910614525139,
+    "alerts": 44,
+    "false": 20,
+    "precision": 0.5454545454545454,
+    "events_warned": 20,
+    "recall": 0.8695652173913043,
+    "lead": {
+     "median": 44.55000000000929,
+     "p10": 15.959999999999093,
+     "p90": 193.74000000002735,
+     "n": 20
+    }
+   },
+   {
+    "threshold": 0.7,
+    "f1": 0.7100591715976331,
+    "alerts": 40,
+    "false": 16,
+    "precision": 0.6,
+    "events_warned": 20,
+    "recall": 0.8695652173913043,
+    "lead": {
+     "median": 43.950000000009325,
+     "p10": 15.959999999999093,
+     "p90": 188.560000000041,
+     "n": 20
+    }
+   },
+   {
+    "threshold": 0.8,
+    "f1": 0.7137315748642358,
+    "alerts": 38,
+    "false": 15,
+    "precision": 0.6052631578947368,
+    "events_warned": 20,
+    "recall": 0.8695652173913043,
+    "lead": {
+     "median": 41.4500000000056,
+     "p10": 7.639999999999768,
+     "p90": 188.560000000041,
+     "n": 20
+    }
+   },
+   {
+    "threshold": 0.85,
+    "f1": 0.7177814029363786,
+    "alerts": 36,
+    "false": 14,
+    "precision": 0.6111111111111112,
+    "events_warned": 20,
+    "recall": 0.8695652173913043,
+    "lead": {
+     "median": 37.0500000000046,
+     "p10": 7.0600000000014145,
+     "p90": 172.96000000002095,
+     "n": 20
+    }
+   },
+   {
+    "threshold": 0.9,
+    "f1": 0.7444029850746269,
+    "alerts": 31,
+    "false": 10,
+    "precision": 0.6774193548387096,
+    "events_warned": 19,
+    "recall": 0.8260869565217391,
+    "lead": {
+     "median": 37.200000000001154,
+     "p10": 7.0200000000012155,
+     "p90": 174.22000000002325,
+     "n": 19
+    }
+   },
+   {
+    "threshold": 0.93,
+    "f1": 0.7149532710280374,
+    "alerts": 26,
+    "false": 8,
+    "precision": 0.6923076923076923,
+    "events_warned": 17,
+    "recall": 0.7391304347826086,
+    "lead": {
+     "median": 27.6000000000017,
+     "p10": 6.460000000000844,
+     "p90": 158.78000000000293,
+     "n": 17
+    }
+   },
+   {
+    "threshold": 0.95,
+    "f1": 0.6956521739130435,
+    "alerts": 23,
+    "false": 7,
+    "precision": 0.6956521739130435,
+    "events_warned": 16,
+    "recall": 0.6956521739130435,
+    "lead": {
+     "median": 24.24999999999862,
+     "p10": 6.300000000000651,
+     "p90": 154.65000000000586,
+     "n": 16
+    }
+   },
+   {
+    "threshold": 0.97,
+    "f1": 0.6341463414634146,
+    "alerts": 18,
+    "false": 5,
+    "precision": 0.7222222222222222,
+    "events_warned": 13,
+    "recall": 0.5652173913043478,
+    "lead": {
+     "median": 11.699999999999335,
+     "p10": 5.620000000001278,
+     "p90": 121.45999999999536,
+     "n": 13
+    }
+   },
+   {
+    "threshold": 0.98,
+    "f1": 0.5555555555555555,
+    "alerts": 13,
+    "false": 3,
+    "precision": 0.7692307692307693,
+    "events_warned": 10,
+    "recall": 0.43478260869565216,
+    "lead": {
+     "median": 7.9500000000003155,
+     "p10": 3.220000000000712,
+     "p90": 40.580000000007665,
+     "n": 10
+    }
+   }
+  ]
+ },
+ "importance": [
+  [
+   "ratio",
+   0.14178207538810753
+  ],
+  [
+   "damped",
+   0.13866509543997876
+  ],
+  [
+   "approaching",
+   0.07824554588757322
+  ],
+  [
+   "slope120",
+   0.037277449066262035
+  ],
+  [
+   "churn",
+   0.03722837759267653
+  ],
+  [
+   "venue",
+   0.03291686256955558
+  ],
+  [
+   "slope15",
+   0.030153714764433088
+  ],
+  [
+   "leaving",
+   0.02240099192594756
+  ],
+  [
+   "slope45",
+   0.01690946651717275
+  ],
+  [
+   "speed",
+   0.011771267485361484
+  ],
+  [
+   "dwell",
+   0.009695818753240123
+  ],
+  [
+   "door_in",
+   0.0034867520259389364
+  ],
+  [
+   "door_net",
+   0.0015625501787950118
+  ]
+ ],
+ "decision": "warn when the probability is at least the threshold and the damped forecast reaches capacity",
+ "verdict": "Mixed. Final held-out test: warned of 41 of 51 events (rule: 29) with 47% of warnings false (rule: 42%). Validation: the rule was slightly ahead on F1. Shipped as opt-in; the rule is the default."
+}

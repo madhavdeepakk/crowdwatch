@@ -1,0 +1,80 @@
+# An annotated example for a real camera. Copy it, change the values, then:
+#
+#     crowdwatch run configs/my_camera.yaml
+#
+# All positions are fractions of the picture: (0, 0) is the top-left corner
+# and (1, 1) the bottom-right, so the file keeps working if the camera's
+# resolution changes. The easiest way to get zone shapes is to draw them in
+# the dashboard ("Edit zones"); they are written back into this file.
+
+name: Central Station, north concourse
+
+source:
+  type: video
+  uri: rtsp://192.168.1.20:554/stream1   # or a file such as videos/concourse.mp4, or 0 for a webcam
+  loop: true                             # recordings start again at the end; ignored for cameras
+
+processing:
+  fps: 10          # frames analysed per second; 5 is plenty for slow crowds and halves the load
+  anchor: foot     # where a person "is": the bottom of their box (foot) or its centre (ceiling cameras)
+
+detector:
+  backend: yolox
+  model: yolox_s   # yolox_tiny is about three times faster and misses more distant people
+  tiles: [1, 1]    # [2, 2] also scans four overlapping quarters to find small, far-away people
+
+# Optional, for packed crowds. A density-map model runs every couple of seconds
+# beside the tracker and takes over a zone's count when it is clearly higher.
+# It needs PyTorch once, to convert the weights: pip install torch
+density:
+  enabled: false
+  model: dmcount_qnrf    # trained on varied scenes; the better choice for an unseen camera
+  every_s: 2.0
+
+# Optional. Mark four or more spots you can locate both in the picture and on
+# the floor plan (in metres). With this, zone areas, densities and walking
+# speeds are worked out in real units, and capacities can come from floor area.
+calibration:
+  image_points: [[0.21, 0.38], [0.79, 0.36], [0.97, 0.93], [0.04, 0.95]]
+  floor_points: [[0, 0], [12, 0], [12, 18], [0, 18]]
+
+# People per square metre used to turn a zone's area into a capacity when the
+# zone gives none. 2.0 is a common planning limit for event spaces; use the
+# figure from your own venue's safety assessment.
+default_max_density: 2.0
+
+zones:
+  - id: ticket_hall
+    name: Ticket hall
+    capacity: 80                 # the number of people this area can safely hold
+    polygon: [[0.05, 0.45], [0.55, 0.42], [0.60, 0.92], [0.03, 0.95]]
+  - id: gate_line
+    name: Gate line
+    walkway: true                # people should keep moving here; a stalled crowd is flagged
+    max_density: 1.5             # no capacity given: worked out as floor area x 1.5
+    polygon: [[0.58, 0.42], [0.80, 0.40], [0.96, 0.90], [0.63, 0.92]]
+
+# Counting lines. Stand at "a" looking towards "b": people crossing from your
+# left to your right are counted "in".
+lines:
+  - id: north_doors
+    name: North doors
+    a: [0.25, 0.40]
+    b: [0.75, 0.38]
+
+alerts:
+  busy_ratio: 0.6          # share of capacity at which a zone is "busy"
+  warning_ratio: 0.8       # "nearly full"
+  critical_ratio: 1.0      # "over capacity"
+  raise_after_s: 3         # a level must hold this long before it is raised ...
+  clear_after_s: 15        # ... and this long before it is lowered
+  forecast_lead_s: 120     # how far ahead the early warning looks
+  forecast_method: rule    # or "learned" for the trained model (see the README)
+  # webhook_url: https://example.com/hooks/crowdwatch   # alert changes are POSTed here as JSON
+
+privacy:
+  blur_people: true        # pixelate heads in the dashboard picture
+
+storage:
+  path: data/crowdwatch.db # counts and alerts only; no video is ever saved
+  sample_every_s: 2

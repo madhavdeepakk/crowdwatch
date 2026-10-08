@@ -1,0 +1,147 @@
+name: Riverside Mall (simulated)
+source:
+  type: simulator
+  loop: true
+  scenario: surge
+  seed: 7
+  time_scale: 4.0
+processing:
+  fps: 10.0
+  anchor: center
+detector:
+  backend: sim
+  model: yolox_s
+  nms: 0.5
+  tiles:
+  - 1
+  - 1
+  threads: 0
+tracker:
+  high_thresh: 0.5
+  low_thresh: 0.1
+  new_thresh: 0.6
+  match_iou: 0.2
+  match_iou_low: 0.4
+  min_hits: 3
+  max_age_s: 2.0
+  coast_s: 1.2
+calibration:
+  image_points:
+  - - 0.0
+    - 0.0
+  - - 1.0
+    - 0.0
+  - - 1.0
+    - 1.0
+  - - 0.0
+    - 1.0
+  floor_points:
+  - - 0.0
+    - 0.0
+  - - 40.0
+    - 0.0
+  - - 40.0
+    - 24.0
+  - - 0.0
+    - 24.0
+default_max_density: 2.0
+zones:
+- id: west_hall
+  name: West hall
+  polygon:
+  - - 0.025
+    - 0.2917
+  - - 0.225
+    - 0.2917
+  - - 0.225
+    - 0.7083
+  - - 0.025
+    - 0.7083
+  capacity: 40
+  walkway: true
+- id: atrium
+  name: Atrium
+  polygon:
+  - - 0.35
+    - 0.2708
+  - - 0.65
+    - 0.2708
+  - - 0.65
+    - 0.6875
+  - - 0.35
+    - 0.6875
+  capacity: 60
+  walkway: false
+- id: food_court
+  name: Food court
+  polygon:
+  - - 0.7375
+    - 0.1583
+  - - 0.98
+    - 0.1583
+  - - 0.98
+    - 0.5
+  - - 0.7375
+    - 0.5
+  capacity: 45
+  walkway: false
+- id: south_concourse
+  name: South concourse
+  polygon:
+  - - 0.375
+    - 0.7167
+  - - 0.625
+    - 0.7167
+  - - 0.625
+    - 0.8667
+  - - 0.375
+    - 0.8667
+  capacity: 24
+  walkway: true
+lines:
+- id: west_doors
+  name: West doors
+  a:
+  - 0.06
+  - 0.6458
+  b:
+  - 0.06
+  - 0.3542
+- id: east_doors
+  name: East doors
+  a:
+  - 0.94
+  - 0.5667
+  b:
+  - 0.94
+  - 0.8083
+- id: south_doors
+  name: South doors
+  a:
+  - 0.575
+  - 0.8583
+  b:
+  - 0.425
+  - 0.8583
+alerts:
+  busy_ratio: 0.6
+  warning_ratio: 0.8
+  critical_ratio: 1.0
+  hysteresis: 0.05
+  raise_after_s: 3.0
+  clear_after_s: 15.0
+  smoothing_s: 2.0
+  forecast_window_s: 45.0
+  forecast_lead_s: 120.0
+  forecast_damping_s: 90.0
+  forecast_min_ratio: 0.4
+  forecast_min_z: 1.5
+  forecast_max_speed_mps: 0.7
+  forecast_confirm_s: 4.0
+  forecast_clear_s: 30.0
+  stall_speed_mps: 0.3
+privacy:
+  blur_people: false
+storage:
+  path: data/crowdwatch.db
+  sample_every_s: 2.0

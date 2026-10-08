@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CrowdWatch</title>
+  <link rel="preload" href="/static/fonts/overpass-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="g-0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
+    <symbol id="g-1" viewBox="0 0 24 24"><path d="M12 2 22 12 12 22 2 12z"/></symbol>
+    <symbol id="g-2" viewBox="0 0 24 24"><path d="M12 2.5 23 21.5H1z"/></symbol>
+    <symbol id="g-3" viewBox="0 0 24 24"><path d="M7.5 1.5h9l6 6v9l-6 6h-9l-6-6v-9z"/></symbol>
+    <symbol id="g-p" viewBox="0 0 24 24"><path d="M3 19 10 12l4 4 7-9" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h7v7z"/></symbol>
+  </svg>
+
+  <div class="masthead">
+    <span class="wordmark">CrowdWatch</span>
+    <span class="site" id="site"></span>
+    <span class="link-state" id="link-state" role="status">Connecting</span>
+    <span class="spacer"></span>
+    <button type="button" class="quiet" id="sound-toggle" aria-pressed="false">Sound alarm is off</button>
+    <a class="quiet" href="/api/export.csv" download>Download counts (CSV)</a>
+  </div>
+
+  <header class="board" id="board" data-level="0">
+    <div class="board-status">
+      <svg class="glyph" id="board-glyph" aria-hidden="true"><use href="#g-0"/></svg>
+      <span id="status-word">Starting</span>
+    </div>
+    <p class="board-headline" id="headline" role="status" aria-live="polite">Waiting for the first video frame.</p>
+    <dl class="board-facts">
+      <div><dt>People in view</dt><dd id="people">0</dd></div>
+      <div><dt id="clock-label">Video time</dt><dd id="clock">00:00</dd></div>
+    </dl>
+  </header>
+
+  <main class="layout">
+    <div class="col-main">
+      <section class="stage-wrap" aria-label="Live view">
+        <div class="stage" id="stage">
+          <img id="video" alt="Live camera view with tracked people">
+          <svg id="overlay" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div id="labels"></div>
+          <p class="stage-note" id="stage-note" hidden></p>
+        </div>
+        <div class="toolbar">
+          <label class="toggle"><input type="checkbox" id="t-markers" checked> Person markers</label>
+          <label class="toggle"><input type="checkbox" id="t-heatmap"> Heat map</label>
+          <label class="toggle" id="t-blur-wrap"><input type="checkbox" id="t-blur" checked> Blur faces</label>
+          <span class="spacer"></span>
+          <span class="scenario" id="scenario-wrap" hidden>
+            <label for="scenario">Scenario</label>
+            <select id="scenario"></select>
+            <button type="button" id="scenario-go">Restart scenario</button>
+          </span>
+          <button type="button" id="edit-zones">Edit zones</button>
+        </div>
+        <p class="scenario-note" id="scenario-note"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-chart">
+        <h2 id="h-chart">Occupancy over the last 10 minutes</h2>
+        <div class="chart-box"><canvas id="chart" height="240"></canvas></div>
+      </section>
+    </div>
+
+    <div class="col-side">
+      <section class="panel" id="zones-panel" aria-labelledby="h-zones">
+        <h2 id="h-zones">Zones</h2>
+        <div id="zones"></div>
+      </section>
+
+      <section class="panel" id="editor-panel" aria-labelledby="h-editor" hidden>
+        <h2 id="h-editor">Edit zones</h2>
+        <p class="hint" id="editor-hint">Drag a corner to reshape a zone. To add one, choose "Draw a new zone" and click its corners on the live view.</p>
+        <div id="editor-list"></div>
+        <div class="editor-actions">
+          <button type="button" id="draw-zone">Draw a new zone</button>
+          <button type="button" id="finish-shape" hidden>Finish shape</button>
+          <span class="spacer"></span>
+          <button type="button" class="quiet" id="cancel-edit">Cancel</button>
+          <button type="button" class="primary" id="save-zones">Save zones</button>
+        </div>
+        <p class="error" id="editor-error" role="alert" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-alerts">
+        <h2 id="h-alerts">Alerts</h2>
+        <div id="alerts-active"></div>
+        <h3 id="h-past" hidden>Earlier this session</h3>
+        <div id="alerts-past"></div>
+      </section>
+
+      <section class="panel" id="doors-panel" aria-labelledby="h-doors" hidden>
+        <h2 id="h-doors">Doors</h2>
+        <table class="doors">
+          <thead><tr><th scope="col">Door</th><th scope="col">In</th><th scope="col">Out</th><th scope="col">Net</th></tr></thead>
+          <tbody id="doors"></tbody>
+        </table>
+      </section>
+
+      <p class="privacy">Only counts are saved. No video or images of people are stored.</p>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
