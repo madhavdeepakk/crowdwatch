@@ -176,6 +176,13 @@ def cmd_benchmark(args) -> None:
         print(row.row())
 
 
+def cmd_record(args) -> None:
+    from .eval.record import record_all
+
+    for path in record_all(args.out, args.seed):
+        print(f"{path}  ({path.stat().st_size / 1024:.0f} KB)")
+
+
 def cmd_train(args) -> None:
     from .eval.train import train
 
@@ -265,6 +272,11 @@ def main(argv=None) -> None:
     p.add_argument("--limit", type=int, help="use only the first N images")
     p.add_argument("--every", type=int, default=1, help="use every Nth image")
     p.set_defaults(func=cmd_benchmark)
+
+    p = sub.add_parser("record-demo", help="record each scenario for the browser demo page")
+    p.add_argument("--out", default="docs/demo-data")
+    p.add_argument("--seed", type=int, default=7)
+    p.set_defaults(func=cmd_record)
 
     p = sub.add_parser("train-warning", help="retrain the early-warning model on simulated crowds")
     p.add_argument("--train", type=int, default=60, help="number of simulated afternoons to learn from")

@@ -1,0 +1,926 @@
+<!--HEAD-->
+<title>CrowdWatch Live Demo</title>
+<style>
+/* Layout: a signage-style status board over a two-column control room (floor view and chart
+   on the left, zones and alerts on the right), then a short account of how it was tested. */
+@font-face {
+  font-family: "Overpass";
+  src: url("__FONT__") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+:root {
+  --paper: #e9edf1; --panel: #ffffff; --ink: #16203a; --muted: #566078; --rule: #d3d9e2;
+  --stage: #16203a; --on-stage: #ffffff; --on-stage-muted: #c5cbdb;
+  --normal: #1f7a4d; --on-normal: #ffffff;
+  --busy: #d6a400; --on-busy: #16203a;
+  --warning: #c9560a; --on-warning: #ffffff;
+  --critical: #b3261e; --critical-deep: #8e1d17; --on-critical: #ffffff;
+  --info: #1d5fa8; --info-fill: #1d5fa8; --on-info: #ffffff;
+  --s1: #16203a; --s2: #0b7a75; --s3: #6c4ab6; --s4: #9a5b13;
+  /* the camera picture looks the same in both themes, so signs drawn on it keep fixed colours */
+  --sign-normal: #1f7a4d; --sign-busy: #d6a400; --sign-warning: #c9560a; --sign-critical: #b3261e;
+  --sign-info: #1d5fa8; --sign-ink: #16203a; --sign-paper: #ffffff;
+  --font: "Overpass", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1422; --panel: #171f33; --ink: #e9edf5; --muted: #a2acc2; --rule: #2a344d;
+    --stage: #070b15; --on-stage: #ffffff; --on-stage-muted: #aab3c8;
+    --normal: #3fae7c; --on-normal: #08111f;
+    --busy: #e2b21c; --on-busy: #08111f;
+    --warning: #f0863a; --on-warning: #08111f;
+    --critical: #c9362d; --critical-deep: #9c2620; --on-critical: #ffffff;
+    --info: #74b3f2; --info-fill: #2468b8; --on-info: #ffffff;
+    --s1: #e9edf5; --s2: #38c2b8; --s3: #a68cf0; --s4: #e0a35a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1422; --panel: #171f33; --ink: #e9edf5; --muted: #a2acc2; --rule: #2a344d;
+  --stage: #070b15; --on-stage: #ffffff; --on-stage-muted: #aab3c8;
+  --normal: #3fae7c; --on-normal: #08111f;
+  --busy: #e2b21c; --on-busy: #08111f;
+  --warning: #f0863a; --on-warning: #08111f;
+  --critical: #c9362d; --critical-deep: #9c2620; --on-critical: #ffffff;
+  --info: #74b3f2; --info-fill: #2468b8; --on-info: #ffffff;
+  --s1: #e9edf5; --s2: #38c2b8; --s3: #a68cf0; --s4: #e0a35a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font); font-size: 16px; line-height: 1.4; font-variant-numeric: tabular-nums;
+}
+.page { max-width: 1480px; margin: 0 auto; padding-inline: clamp(16px, 2.2vw, 28px); padding-block: 20px 40px;
+        display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
+h2 { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.7rem; text-wrap: balance; }
+h3 { font-size: 0.9rem; font-weight: 600; color: var(--muted); margin: 1rem 0 0.4rem; }
+p { margin: 0; }
+a { color: var(--info); text-underline-offset: 3px; }
+.spacer { flex: 1; }
+[hidden] { display: none !important; }
+button, select {
+  font: inherit; color: inherit; border: 1.5px solid currentColor; border-radius: var(--radius);
+  background: transparent; padding: 0.32rem 0.7rem;
+}
+button { cursor: pointer; font-weight: 600; }
+:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+
+/* ------------------------------------------------------------- intro */
+.intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: end; }
+.intro-lede { font-size: 1.05rem; color: var(--muted); max-width: 68ch; margin-top: 6px; }
+.intro-lede strong { color: var(--ink); font-weight: 600; }
+.intro-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.intro-links a {
+  display: inline-block; padding: 0.4rem 0.85rem; border: 1.5px solid var(--ink); border-radius: var(--radius);
+  color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.intro-links a.primary { background: var(--ink); color: var(--paper); }
+.intro-links a:hover { text-decoration: underline; }
+
+/* ------------------------------------------------- the status board */
+.board {
+  --tone: var(--normal); --on-tone: var(--on-normal);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: stretch;
+  background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); overflow: hidden;
+}
+.board[data-level="1"] { --tone: var(--busy); --on-tone: var(--on-busy); }
+.board[data-level="2"] { --tone: var(--warning); --on-tone: var(--on-warning); }
+.board[data-level="3"] { --tone: var(--critical-deep); --on-tone: var(--on-critical); }
+.board[data-predicted="true"] { --tone: var(--info-fill); --on-tone: var(--on-info); }
+.board-status {
+  display: flex; align-items: center; gap: 0.7rem; min-width: 15.5rem;
+  padding: 0.9rem 1.4rem 0.75rem; background: var(--tone); color: var(--on-tone);
+  font-size: 1.9rem; font-weight: 800; letter-spacing: -0.015em; line-height: 1.1;
+}
+.board-status .glyph { width: 1.9rem; height: 1.9rem; fill: currentColor; color: currentColor; flex: none; }
+.board-headline { align-self: center; padding: 0.7rem 1.4rem; font-size: 1.3rem; font-weight: 500; line-height: 1.25; max-width: 60ch; }
+.board[data-level="3"] { background: var(--critical); border-color: var(--critical); color: var(--on-critical); }
+.board-facts { display: flex; margin: 0; border-left: 2px solid var(--rule); }
+.board[data-level="3"] .board-facts { border-color: color-mix(in srgb, var(--on-critical) 35%, transparent); }
+.board-facts > div { padding: 0.65rem 1.3rem; display: flex; flex-direction: column; justify-content: center; }
+.board-facts dt { font-size: 0.82rem; color: var(--muted); }
+.board[data-level="3"] .board-facts dt { color: color-mix(in srgb, var(--on-critical) 82%, transparent); }
+.board-facts dd { margin: 0; font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
+@media (prefers-reduced-motion: no-preference) {
+  .board.changed .board-status { animation: arrive 0.5s ease-out; }
+  @keyframes arrive { from { transform: translateX(-1.2rem); opacity: 0.2; } to { transform: none; opacity: 1; } }
+}
+
+/* ------------------------------------------------------------ layout */
+.layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.col-main, .col-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel { background: var(--panel); border-radius: var(--radius); padding: 0.95rem 1.1rem 1.1rem; min-width: 0; }
+
+/* ------------------------------------------------------------- stage */
+.stage-wrap { background: var(--stage); color: var(--on-stage); border-radius: var(--radius); padding: 8px 8px 4px; min-width: 0; }
+.stage { position: relative; aspect-ratio: 5 / 3; max-width: 100%; overflow: hidden; border-radius: 2px; background: #e8e5e2; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage svg, #labels { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.zone-shape { fill-opacity: 0.05; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.zone-shape[data-level="0"] { fill: var(--sign-normal); stroke: var(--sign-normal); }
+.zone-shape[data-level="1"] { fill: var(--sign-busy); stroke: var(--sign-busy); fill-opacity: 0.16; }
+.zone-shape[data-level="2"] { fill: var(--sign-warning); stroke: var(--sign-warning); fill-opacity: 0.22; }
+.zone-shape[data-level="3"] { fill: var(--sign-critical); stroke: var(--sign-critical); fill-opacity: 0.3; stroke-width: 4; }
+.door-line { stroke: var(--sign-paper); stroke-width: 4; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.door-line.inner { stroke: var(--sign-info); stroke-width: 2; stroke-dasharray: 2 6; }
+.zone-label {
+  position: absolute; transform: translateY(-100%); white-space: nowrap; padding: 0.12rem 0.5rem 0.05rem;
+  font-size: clamp(0.62rem, 1.15vw, 0.86rem); font-weight: 700; line-height: 1.35;
+  background: var(--sign-normal); color: var(--sign-paper); border-radius: 2px 2px 0 0;
+}
+.zone-label[data-level="1"] { background: var(--sign-busy); color: var(--sign-ink); }
+.zone-label[data-level="2"] { background: var(--sign-warning); }
+.zone-label[data-level="3"] { background: var(--sign-critical); }
+.door-label {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap;
+  font-size: clamp(0.55rem, 0.95vw, 0.74rem); font-weight: 600;
+  background: var(--sign-paper); color: var(--sign-ink); padding: 0 0.35rem; border-radius: 2px; border: 1px solid var(--sign-info);
+}
+.transport { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 10px 6px 4px; }
+.transport button { min-width: 5.2rem; }
+.transport button:hover, .toolbar select:hover { background: color-mix(in srgb, var(--on-stage) 14%, transparent); }
+.timeline { position: relative; min-width: 0; }
+.timeline input[type="range"] { width: 100%; margin: 0; display: block; accent-color: var(--on-stage); }
+.marks { position: relative; height: 6px; margin: 0 8px 5px; background: color-mix(in srgb, var(--on-stage) 16%, transparent); border-radius: 3px; overflow: hidden; }
+.marks span { position: absolute; top: 0; bottom: 0; }
+.marks span[data-kind="predicted"] { background: #6fb0f0; }
+.marks span[data-kind="warning"] { background: #f0863a; }
+.marks span[data-kind="critical"] { background: #ff5a4f; }
+.clock { font-weight: 600; white-space: nowrap; }
+.toolbar { display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; padding: 6px 6px 8px; font-size: 0.92rem; }
+.toolbar select option { color: #16203a; background: #ffffff; }
+.toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+.toggle input { width: 1.05rem; height: 1.05rem; accent-color: var(--on-stage); }
+.field { display: inline-flex; align-items: center; gap: 0.45rem; }
+.scenario-note { padding: 0 6px 8px; font-size: 0.88rem; color: var(--on-stage-muted); max-width: 78ch; }
+.legend { display: flex; gap: 4px 14px; flex-wrap: wrap; padding: 0 6px 8px; font-size: 0.8rem; color: var(--on-stage-muted); }
+.legend i { display: inline-block; width: 14px; height: 6px; border-radius: 3px; margin-right: 5px; vertical-align: 1px; }
+
+/* ------------------------------------------------------------- zones */
+.zone {
+  --tone: var(--normal);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 8.5rem); gap: 0.15rem 0.9rem;
+  padding: 0.7rem 0.8rem 0.7rem 1rem; border-left: 0.5rem solid var(--tone); border-top: 1px solid var(--rule);
+}
+.zone:first-child { border-top: 0; }
+.zone[data-level="1"] { --tone: var(--busy); }
+.zone[data-level="2"] { --tone: var(--warning); }
+.zone[data-level="3"] { --tone: var(--critical); background: var(--critical); color: var(--on-critical); border-top-color: transparent; }
+.zone-head, .zone-count, .meter { grid-column: 1; }
+.zone-glyph { display: inline-flex; }
+.zone-head { display: flex; align-items: center; gap: 0.45rem; font-weight: 700; flex-wrap: wrap; }
+.zone-head .glyph { width: 0.95rem; height: 0.95rem; fill: var(--tone); flex: none; }
+.zone[data-level="3"] .zone-head .glyph { fill: currentColor; }
+.zone-state { font-weight: 500; color: var(--muted); font-size: 0.9rem; margin-left: auto; white-space: nowrap; }
+.zone[data-level="3"] .zone-state, .zone[data-level="3"] .zone-facts, .zone[data-level="3"] .zone-of { color: color-mix(in srgb, var(--on-critical) 90%, transparent); }
+.zone-count { font-size: 2.3rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; margin-top: 0.25rem; }
+.zone-of { font-size: 1rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.meter { position: relative; height: 0.6rem; background: var(--paper); margin: 0.45rem 0 0.4rem; border-radius: 1px; }
+.zone[data-level="3"] .meter { background: color-mix(in srgb, var(--on-critical) 28%, transparent); }
+.meter-fill { position: absolute; inset: 0 auto 0 0; background: var(--tone); border-radius: 1px; }
+.zone[data-level="3"] .meter-fill { background: var(--on-critical); }
+.meter-tick { position: absolute; top: -0.2rem; bottom: -0.2rem; width: 2px; background: var(--ink); }
+.zone[data-level="3"] .meter-tick { background: var(--critical-deep); }
+.zone-facts { grid-column: 1 / -1; font-size: 0.86rem; color: var(--muted); display: flex; gap: 0.1rem 1.1rem; flex-wrap: wrap; }
+.zone-facts b { font-weight: 600; color: var(--ink); }
+.zone[data-level="3"] .zone-facts b { color: var(--on-critical); }
+.zone-predict {
+  grid-column: 1 / -1; margin-top: 0.35rem; padding: 0.3rem 0.55rem; font-size: 0.9rem; font-weight: 600;
+  background: var(--info-fill); color: var(--on-info); display: flex; align-items: center; gap: 0.45rem; border-radius: 2px;
+}
+.zone-predict .glyph { width: 1rem; height: 1rem; fill: currentColor; color: currentColor; flex: none; }
+.spark { grid-row: 1 / span 3; grid-column: 2; align-self: center; width: 100%; height: 4.2rem; }
+.empty { color: var(--muted); font-size: 0.95rem; }
+
+/* ------------------------------------------------------------ alerts */
+.alert { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.1rem 0.6rem; padding: 0.6rem 0; border-top: 1px solid var(--rule); }
+.alert:first-child { border-top: 0; padding-top: 0.1rem; }
+.alert .glyph { width: 1.15rem; height: 1.15rem; margin-top: 0.12rem; fill: var(--tone, var(--muted)); color: var(--tone, var(--muted)); }
+.alert[data-level="warning"] { --tone: var(--warning); }
+.alert[data-level="critical"] { --tone: var(--critical); }
+.alert[data-level="predicted"] { --tone: var(--info); }
+.alert-text { font-weight: 600; line-height: 1.3; }
+.alert.past .alert-text { font-weight: 500; }
+.alert.past .glyph { opacity: 0.6; }
+.alert-meta { grid-column: 2; display: flex; align-items: center; gap: 0.8rem; font-size: 0.86rem; color: var(--muted); flex-wrap: wrap; }
+.alert-meta button { font-size: 0.86rem; padding: 0.12rem 0.55rem; color: var(--ink); }
+.alert-meta button:hover { background: var(--paper); }
+
+/* ------------------------------------------------- doors, chart, notes */
+.doors { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.doors th { text-align: right; font-weight: 500; color: var(--muted); font-size: 0.86rem; padding: 0 0 0.3rem; }
+.doors th:first-child, .doors td:first-child { text-align: left; }
+.doors td { text-align: right; padding: 0.3rem 0; border-top: 1px solid var(--rule); font-weight: 600; }
+.doors td:first-child { font-weight: 500; }
+#chart { display: block; width: 100%; height: 240px; }
+
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.notes .panel p { color: var(--muted); max-width: 62ch; }
+.notes .panel p + p { margin-top: 0.6rem; }
+.notes strong { color: var(--ink); font-weight: 600; }
+.result { width: 100%; border-collapse: collapse; margin: 0.2rem 0 0.7rem; font-size: 0.95rem; }
+.result th { text-align: right; font-weight: 500; color: var(--muted); font-size: 0.84rem; padding: 0 0 0.3rem 0.6rem; vertical-align: bottom; }
+.result th:first-child, .result td:first-child { text-align: left; padding-left: 0; }
+.result td { text-align: right; padding: 0.32rem 0 0.32rem 0.6rem; border-top: 1px solid var(--rule); font-weight: 700; }
+.result td:first-child { font-weight: 500; }
+.table-scroll { overflow-x: auto; }
+.stack { margin: 0; padding-left: 1.1rem; color: var(--muted); }
+.stack li { margin: 0.25rem 0; max-width: 60ch; }
+.footer { font-size: 0.88rem; color: var(--muted); display: flex; gap: 6px 18px; flex-wrap: wrap; }
+
+@media (max-width: 1080px) {
+  .layout, .notes { grid-template-columns: minmax(0, 1fr); }
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .board-status { min-width: 0; font-size: 1.5rem; }
+  .board-facts { border-left: 0; border-top: 2px solid var(--rule); }
+  .intro { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  h1 { font-size: 1.6rem; }
+  .board-headline { font-size: 1.05rem; padding: 0.6rem 1rem; }
+  .board-status { padding: 0.7rem 1rem 0.55rem; }
+  .board-facts > div { padding: 0.5rem 1rem; }
+  .zone { grid-template-columns: minmax(0, 1fr); }
+  .spark { display: none; }
+  .transport { grid-template-columns: auto minmax(0, 1fr); }
+  .clock { grid-column: 1 / -1; }
+  .door-label { display: none; }
+}
+</style>
+<!--/HEAD-->
+<!--BODY-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="g-0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
+  <symbol id="g-1" viewBox="0 0 24 24"><path d="M12 2 22 12 12 22 2 12z"/></symbol>
+  <symbol id="g-2" viewBox="0 0 24 24"><path d="M12 2.5 23 21.5H1z"/></symbol>
+  <symbol id="g-3" viewBox="0 0 24 24"><path d="M7.5 1.5h9l6 6v9l-6 6h-9l-6-6v-9z"/></symbol>
+  <symbol id="g-p" viewBox="0 0 24 24"><path d="M3 19 10 12l4 4 7-9" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h7v7z"/></symbol>
+</svg>
+
+<div class="page">
+  <header class="intro">
+    <div>
+      <h1>CrowdWatch</h1>
+      <p class="intro-lede">Real-time overcrowding detection from CCTV video. <strong>This is a recorded run of the real system, replayed in your browser.</strong> The mall is simulated; every count, forecast and alert below is what the tracking and alert pipeline produced.</p>
+    </div>
+    <nav class="intro-links" aria-label="Project links">
+      <a class="primary" href="https://github.com/madhavdeepakk/crowdwatch" target="_blank" rel="noopener">Source on GitHub</a>
+      <a href="#tested">How it was tested</a>
+    </nav>
+  </header>
+
+  <section class="board" id="board" data-level="0" aria-label="Venue status">
+    <div class="board-status">
+      <svg class="glyph" id="board-glyph" aria-hidden="true"><use href="#g-0"/></svg>
+      <span id="status-word">All clear</span>
+    </div>
+    <p class="board-headline" id="headline" role="status" aria-live="polite">All zones are within their limits.</p>
+    <dl class="board-facts">
+      <div><dt>People in view</dt><dd id="people">0</dd></div>
+      <div><dt>Video time</dt><dd id="clock">00:00</dd></div>
+    </dl>
+  </section>
+
+  <main class="layout">
+    <div class="col-main">
+      <section class="stage-wrap" aria-label="Floor view">
+        <div class="stage" id="stage">
+          <canvas id="floor" role="img" aria-label="Ceiling camera view of the mall floor with people moving and four watched zones"></canvas>
+          <svg id="overlay" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div id="labels"></div>
+        </div>
+        <div class="transport">
+          <button type="button" id="play">Pause</button>
+          <div class="timeline">
+            <div class="marks" id="marks" aria-hidden="true"></div>
+            <input type="range" id="seek" min="0" max="540" step="1" value="150" aria-label="Position in the recording">
+          </div>
+          <span class="clock" id="clock2">02:30 / 09:00</span>
+        </div>
+        <div class="legend" aria-hidden="true">
+          <span><i style="background:#6fb0f0"></i>Early warning</span>
+          <span><i style="background:#f0863a"></i>Nearly full</span>
+          <span><i style="background:#ff5a4f"></i>Over capacity</span>
+        </div>
+        <div class="toolbar">
+          <span class="field"><label for="scenario">Scenario</label>
+            <select id="scenario">
+              <option value="surge" selected>Flash sale in the atrium</option>
+              <option value="gradual">Lunch rush in the food court</option>
+              <option value="busy">A busy afternoon</option>
+              <option value="wave">A crowd passes through</option>
+            </select></span>
+          <span class="field"><label for="speed">Speed</label>
+            <select id="speed"><option value="1">1x</option><option value="4" selected>4x</option><option value="8">8x</option></select></span>
+          <label class="toggle"><input type="checkbox" id="t-markers" checked> Tracked people</label>
+          <label class="toggle"><input type="checkbox" id="t-heatmap"> Heat map</label>
+        </div>
+        <p class="scenario-note" id="scenario-note"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-chart">
+        <h2 id="h-chart">Occupancy over the last 10 minutes</h2>
+        <canvas id="chart" height="240" role="img" aria-label="Line chart of each zone's occupancy as a share of capacity"></canvas>
+      </section>
+    </div>
+
+    <div class="col-side">
+      <section class="panel" aria-labelledby="h-zones">
+        <h2 id="h-zones">Zones</h2>
+        <div id="zones"></div>
+      </section>
+      <section class="panel" aria-labelledby="h-alerts">
+        <h2 id="h-alerts">Alerts</h2>
+        <div id="alerts-active"></div>
+        <h3 id="h-past" hidden>Earlier in this run</h3>
+        <div id="alerts-past"></div>
+      </section>
+      <section class="panel" aria-labelledby="h-doors">
+        <h2 id="h-doors">Doors</h2>
+        <table class="doors">
+          <thead><tr><th scope="col">Door</th><th scope="col">In</th><th scope="col">Out</th><th scope="col">Net</th></tr></thead>
+          <tbody id="doors"></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <section class="notes" id="tested" aria-label="How it was tested">
+    <div class="panel">
+      <h2>Counting real crowds</h2>
+      <div class="table-scroll"><table class="result">
+        <thead><tr><th scope="col">Counter</th><th scope="col">Average error, people per image</th></tr></thead>
+        <tbody>
+          <tr><td>Person detector alone</td><td>100</td></tr>
+          <tr><td>Detector with tiling</td><td>45</td></tr>
+          <tr><td>Hybrid with a density-map model</td><td>13</td></tr>
+        </tbody>
+      </table></div>
+      <p>Measured on <strong>ShanghaiTech Part B</strong>, a public benchmark of street scenes with 124 hand-counted people per image on average, using 106 of its test images. Neither model was trained on it. A box detector misses most of a dense crowd, so a density-map network takes over when a zone gets packed.</p>
+    </div>
+    <div class="panel">
+      <h2>Alarms that operators can trust</h2>
+      <div class="table-scroll"><table class="result">
+        <thead><tr><th scope="col"></th><th scope="col">Plain threshold</th><th scope="col">CrowdWatch</th></tr></thead>
+        <tbody>
+          <tr><td>Events caught, of 51</td><td>49</td><td>47</td></tr>
+          <tr><td>Separate alarms raised</td><td>2,920</td><td>47</td></tr>
+          <tr><td>False alarms</td><td>31</td><td>2</td></tr>
+          <tr><td>Delay after a zone fills</td><td>1.8 s</td><td>7.3 s</td></tr>
+        </tbody>
+      </table></div>
+      <p>From 9 hours of simulated crowds that nothing was tuned on. A level must hold for a few seconds before it is raised, which costs a few seconds and removes the chatter. The early warning is weaker: it announced 29 of the 51 events, about 51 seconds ahead, and 42% of its warnings came to nothing.</p>
+    </div>
+    <div class="panel">
+      <h2>What is running</h2>
+      <ul class="stack">
+        <li><strong>Detection:</strong> YOLOX on ONNX Runtime, on a CPU.</li>
+        <li><strong>Tracking:</strong> a ByteTrack-style tracker written from scratch, with its own Hungarian matching.</li>
+        <li><strong>Packed crowds:</strong> a DM-Count density map that takes over from the detector.</li>
+        <li><strong>Early warning:</strong> a damped trend, tested against each zone's ordinary coming and going.</li>
+        <li><strong>Serving:</strong> FastAPI with a WebSocket dashboard, Prometheus metrics and an MCP server for AI assistants.</li>
+        <li><strong>Checks:</strong> 100 automated tests, run on every push.</li>
+      </ul>
+      <p style="margin-top:0.7rem">Full method and caveats are in the <a href="https://github.com/madhavdeepakk/crowdwatch/blob/main/docs/evaluation.md" target="_blank" rel="noopener">evaluation</a> and <a href="https://github.com/madhavdeepakk/crowdwatch/blob/main/docs/benchmark.md" target="_blank" rel="noopener">benchmark</a> write-ups.</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>Built by Madhav Deepak</span>
+    <span>The live system runs from Python: <code>pip install -e . &amp;&amp; crowdwatch demo</code></span>
+  </footer>
+</div>
+
+<script type="application/json" id="data-surge">__DATA__</script>
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const LEVEL_WORD = ["Normal", "Busy", "Nearly full", "Over capacity"];
+  const BOARD_WORD = ["All clear", "Busy", "Nearly full", "Over capacity"];
+  const METER_MAX = 1.25;
+  const W = 1280, H = 768, PX = 32;
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const state = {
+    data: null, cache: {}, frames: null, time: 150, k: -1, playing: !reduceMotion, speed: 4,
+    markers: true, heatmap: false, acked: new Set(), boardKey: "", headings: new Map(), last: 0,
+  };
+
+  // ------------------------------------------------------------ helpers
+  const esc = (text) => String(text).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const clock = (t) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const glyph = (id) => `<svg class="glyph" aria-hidden="true"><use href="#g-${id}"/></svg>`;
+  function duration(seconds) {
+    const s = Math.max(0, Math.round(seconds));
+    if (s < 60) return `${s} s`;
+    const m = Math.floor(s / 60), rest = s % 60;
+    return rest >= 5 ? `${m} min ${rest} s` : `${m} min`;
+  }
+  function eta(seconds) {
+    if (seconds < 15) return "a few seconds";
+    if (seconds < 50) return `about ${Math.max(10, Math.round(seconds / 10) * 10)} seconds`;
+    const m = seconds / 60;
+    if (m < 1.25) return "about 1 minute";
+    if (m < 1.75) return "about 1.5 minutes";
+    return `about ${Math.round(m)} minutes`;
+  }
+  function trendText(perMin) {
+    if (Math.abs(perMin) < 1) return "steady";
+    return `${perMin > 0 ? "rising" : "falling"} by ${Math.round(Math.abs(perMin))} a minute`;
+  }
+
+  // -------------------------------------------------------------- data
+  function unpack(data) {
+    // positions: for each keyframe, a count then (id | tracked bit, x, y) triples, 16 bits each
+    const raw = atob(data.pos);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const view = new DataView(bytes.buffer);
+    const u = data.world.units, margin = data.world.margin;
+    const frames = [];
+    let p = 0;
+    while (p < bytes.length) {
+      const n = view.getUint16(p, true); p += 2;
+      const ids = new Uint16Array(n), tracked = new Uint8Array(n), x = new Float32Array(n), y = new Float32Array(n);
+      const index = new Map();
+      for (let i = 0; i < n; i++) {
+        const tag = view.getUint16(p, true);
+        ids[i] = tag & 0x7fff; tracked[i] = tag >> 15;
+        x[i] = (view.getUint16(p + 2, true) / u - margin) * PX;
+        y[i] = (view.getUint16(p + 4, true) / u - margin) * PX;
+        index.set(ids[i], i);
+        p += 6;
+      }
+      frames.push({ n, ids, tracked, x, y, index });
+    }
+    return frames;
+  }
+
+  async function loadScenario(name) {
+    if (!state.cache[name]) {
+      let data;
+      const inline = $(`data-${name}`);
+      if (inline) data = JSON.parse(inline.textContent);
+      else {
+        const res = await fetch(`demo-data/${name}.json`);
+        if (!res.ok) throw new Error(`could not load the ${name} recording`);
+        data = await res.json();
+      }
+      state.cache[name] = { data, frames: unpack(data) };
+    }
+    const entry = state.cache[name];
+    state.data = entry.data; state.frames = entry.frames;
+    state.k = -1; state.acked = new Set(); state.headings = new Map(); state.boardKey = "";
+    const d = state.data;
+    $("seek").max = d.duration;
+    $("scenario-note").textContent = d.description;
+    buildZones(); buildMarks(); buildOverlayStatic();
+  }
+
+  function snapshotAt(k) {
+    const d = state.data;
+    const zones = d.zones.map((z, i) => {
+      const c = d.z[i];
+      return { id: z.id, name: z.name, capacity: z.capacity, count: c.count[k], ratio: c.ratio[k], level: c.level[k],
+        trend: c.trend[k], forecast: c.fc[k], eta: c.eta[k], speed: c.speed[k], dwell: c.dwell[k],
+        approaching: c.appr[k], risk: c.risk[k], predicted: !!c.pred[k], congested: !!c.cong[k], density: c.dens[k] };
+    });
+    const order = { critical: 0, warning: 1, predicted: 2 };
+    const alerts = (d.alerts[k] || []).slice().sort((a, b) => order[a.level] - order[b.level] || b.started_t - a.started_t);
+    const worst = Math.max(0, ...zones.map((z) => z.level));
+    return {
+      t: d.t[k], people: d.people[k], zones, alerts,
+      lines: d.lines.map((l, i) => ({ name: l.name, in: d.doors[i].in[k], out: d.doors[i].out[k] })),
+      status: { level: worst, predicted: alerts.some((a) => a.level === "predicted") && worst < 3,
+                headline: alerts.length ? alerts[0].message : "All zones are within their limits." },
+    };
+  }
+
+  // ---------------------------------------------------------- building
+  function buildZones() {
+    const th = state.data.thresholds;
+    $("zones").innerHTML = state.data.zones.map((z) => `
+      <article class="zone" id="zone-${esc(z.id)}" data-level="0">
+        <div class="zone-head"><span class="zone-glyph">${glyph(0)}</span><span>${esc(z.name)}</span><span class="zone-state">Normal</span></div>
+        <div class="zone-count"><span class="n">0</span> <span class="zone-of">of ${z.capacity}</span></div>
+        <div class="meter" role="img" aria-label="Occupancy meter">
+          <div class="meter-fill" style="width:0"></div>
+          <div class="meter-tick" style="left:${(th.warning / METER_MAX) * 100}%" title="Nearly full from here"></div>
+          <div class="meter-tick" style="left:${(th.critical / METER_MAX) * 100}%" title="Capacity"></div>
+        </div>
+        <canvas class="spark" aria-hidden="true"></canvas>
+        <div class="zone-predict" hidden></div>
+        <div class="zone-facts"></div>
+      </article>`).join("");
+  }
+
+  function buildMarks() {
+    // where in the recording something happens, so a visitor can jump straight to it
+    const d = state.data, th = d.thresholds.critical;
+    const pct = (t) => `${(Math.min(Math.max(t, 0), d.duration) / d.duration) * 100}%`;
+    let html = "";
+    for (const a of d.log) {
+      if (a.kind === "predicted") {
+        html += `<span data-kind="predicted" style="left:${pct(a.started_t)};width:max(3px, calc(${pct(a.ended_t)} - ${pct(a.started_t)}))"></span>`;
+        continue;
+      }
+      html += `<span data-kind="warning" style="left:${pct(a.started_t)};width:max(3px, calc(${pct(a.ended_t)} - ${pct(a.started_t)}))"></span>`;
+      const zi = d.zones.findIndex((z) => z.id === a.zone_id);
+      let start = null;
+      d.z[zi].level.forEach((level, k) => {
+        const on = level === 3 && d.t[k] >= a.started_t && d.t[k] <= a.ended_t;
+        if (on && start === null) start = d.t[k];
+        if ((!on || k === d.t.length - 1) && start !== null) {
+          html += `<span data-kind="critical" style="left:${pct(start)};width:max(3px, calc(${pct(d.t[k])} - ${pct(start)}))"></span>`;
+          start = null;
+        }
+      });
+    }
+    $("marks").innerHTML = html;
+    void th;
+  }
+
+  function buildOverlayStatic() {
+    $("overlay").setAttribute("viewBox", `0 0 ${W} ${H}`);
+  }
+
+  // ---------------------------------------------------------- rendering
+  function renderBoard(snap) {
+    const board = $("board");
+    const level = snap.status.level;
+    const predicted = snap.status.predicted && level < 2;
+    const key = `${level}:${predicted}`;
+    board.dataset.level = level;
+    board.dataset.predicted = String(predicted);
+    $("status-word").textContent = predicted ? "Filling up" : BOARD_WORD[level];
+    $("board-glyph").innerHTML = `<use href="#g-${predicted ? "p" : level}"/>`;
+    $("headline").textContent = snap.status.headline;
+    $("people").textContent = snap.people;
+    if (state.boardKey && key !== state.boardKey) {
+      board.classList.remove("changed");
+      void board.offsetWidth;
+      board.classList.add("changed");
+    }
+    state.boardKey = key;
+  }
+
+  function renderZones(snap) {
+    for (const z of snap.zones) {
+      const el = $(`zone-${z.id}`);
+      if (el.dataset.level !== String(z.level)) {
+        el.dataset.level = z.level;
+        el.querySelector(".zone-glyph").innerHTML = glyph(z.level);
+      }
+      el.querySelector(".zone-state").textContent = `${LEVEL_WORD[z.level]}, ${Math.round(z.ratio * 100)}%`;
+      el.querySelector(".n").textContent = z.count;
+      el.querySelector(".meter-fill").style.width = `${(Math.min(z.ratio, METER_MAX) / METER_MAX) * 100}%`;
+      const predict = el.querySelector(".zone-predict");
+      if (z.predicted && z.level < 3) {
+        predict.hidden = false;
+        predict.innerHTML = `${glyph("p")}<span>${z.eta !== null ? `Full in ${eta(z.eta)} at this rate` : "Likely to fill within 2 minutes"}</span>`;
+      } else if (z.congested) {
+        predict.hidden = false;
+        predict.innerHTML = `${glyph(2)}<span>The crowd here has almost stopped moving</span>`;
+      } else predict.hidden = true;
+      const facts = [`<span><b>${trendText(z.trend)}</b></span>`];
+      if (z.approaching >= 1) facts.push(`<span><b>${z.approaching}</b> heading this way</span>`);
+      if (z.density !== null) facts.push(`<span>Density <b>${z.density.toFixed(2)}</b> per m²</span>`);
+      if (z.speed !== null) facts.push(`<span>Walking speed <b>${z.speed.toFixed(1)}</b> m/s</span>`);
+      if (z.dwell !== null) facts.push(`<span>Average stay <b>${duration(z.dwell)}</b></span>`);
+      facts.push(`<span>Risk <b>${z.risk}</b> of 100</span>`);
+      el.querySelector(".zone-facts").innerHTML = facts.join("");
+    }
+  }
+
+  function renderOverlay(snap) {
+    const d = state.data;
+    let shapes = "", labels = "";
+    d.zones.forEach((z, i) => {
+      const live = snap.zones[i];
+      const pts = z.polygon.map(([x, y]) => `${x * W},${y * H}`).join(" ");
+      shapes += `<polygon class="zone-shape" data-level="${live.level}" points="${pts}"/>`;
+      const xs = z.polygon.map((p) => p[0]), minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...z.polygon.map((p) => p[1]));
+      const side = minX > 0.6 ? `right:${(1 - maxX) * 100}%` : `left:${minX * 100}%`;
+      labels += `<div class="zone-label" data-level="${live.level}" style="${side};top:${minY * 100}%">${esc(z.name)}&ensp;${live.count} / ${live.capacity}</div>`;
+    });
+    for (const line of d.lines) {
+      const [ax, ay] = line.a, [bx, by] = line.b;
+      const coords = `x1="${ax * W}" y1="${ay * H}" x2="${bx * W}" y2="${by * H}"`;
+      shapes += `<line class="door-line" ${coords}/><line class="door-line inner" ${coords}/>`;
+      labels += `<div class="door-label" style="left:${((ax + bx) / 2) * 100}%;top:${((ay + by) / 2) * 100}%">${esc(line.name)}</div>`;
+    }
+    $("overlay").innerHTML = shapes;
+    $("labels").innerHTML = labels;
+  }
+
+  function renderAlerts(snap) {
+    const d = state.data, th = d.thresholds.critical;
+    $("alerts-active").innerHTML = snap.alerts.length ? snap.alerts.map((a) => `
+      <div class="alert" data-level="${a.level}">
+        ${glyph(a.level === "critical" ? 3 : a.level === "warning" ? 2 : "p")}
+        <div class="alert-text">${esc(a.message)}</div>
+        <div class="alert-meta"><span>Since ${clock(a.started_t)}</span>
+          ${state.acked.has(a.id) ? "<span>Acknowledged</span>" : `<button type="button" data-ack="${a.id}">Acknowledge</button>`}</div>
+      </div>`).join("") : '<p class="empty">Nothing needs attention right now.</p>';
+    const past = d.log.filter((a) => a.ended_t <= snap.t).sort((a, b) => b.ended_t - a.ended_t).slice(0, 6);
+    $("h-past").hidden = past.length === 0;
+    $("alerts-past").innerHTML = past.map((a) => {
+      const over = a.peak_ratio >= th;
+      const what = a.kind === "predicted" ? "early warning" : (over ? "over capacity" : "nearly full");
+      const peak = a.kind === "predicted" ? "" : `, peak ${a.peak_count} people (${Math.round(a.peak_ratio * 100)}%)`;
+      return `<div class="alert past" data-level="${a.kind === "predicted" ? "predicted" : (over ? "critical" : "warning")}">
+        ${glyph(a.kind === "predicted" ? "p" : (over ? 3 : 2))}
+        <div class="alert-text">${esc(a.zone_name)}: ${what} for ${duration(a.ended_t - a.started_t)}${peak}</div>
+        <div class="alert-meta"><span>Started ${clock(a.started_t)}</span><span>Ended: ${esc(a.outcome || "resolved")}</span></div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderDoors(snap) {
+    $("doors").innerHTML = snap.lines.map((l) => {
+      const net = l.in - l.out;
+      return `<tr><td>${esc(l.name)}</td><td>${l.in}</td><td>${l.out}</td><td>${net > 0 ? "+" : ""}${net}</td></tr>`;
+    }).join("");
+  }
+
+  // ------------------------------------------------------------- charts
+  function prepare(canvas) {
+    const ratio = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) {
+      canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio);
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+
+  function drawSparks(k) {
+    const d = state.data, now = d.t[k], span = 300;
+    const k0 = Math.max(0, k - span);
+    d.zones.forEach((z, i) => {
+      const el = $(`zone-${z.id}`), c = d.z[i];
+      if (k - k0 < 2) return;
+      const { ctx, w, h } = prepare(el.querySelector(".spark"));
+      const critical = c.level[k] === 3;
+      const ink = critical ? css("--on-critical") : css("--ink");
+      const pastW = w * 0.78;
+      let top = 1.3;
+      for (let j = k0; j <= k; j++) top = Math.max(top, c.ratio[j]);
+      top *= 1.05;
+      const x = (t) => ((t - (now - span)) / span) * pastW;
+      const y = (v) => h - 3 - (v / top) * (h - 8);
+      ctx.strokeStyle = critical ? css("--on-critical") : css("--muted");
+      ctx.globalAlpha = critical ? 0.7 : 1;
+      ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(0, y(1)); ctx.lineTo(w, y(1)); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (let j = k0; j <= k; j++) (j === k0 ? ctx.moveTo(x(d.t[j]), y(c.ratio[j])) : ctx.lineTo(x(d.t[j]), y(c.ratio[j])));
+      ctx.stroke();
+      if (c.fc[k] !== null && Math.abs(c.trend[k]) >= 1) {
+        const fy = y(Math.min(c.fc[k] / z.capacity, top));
+        ctx.strokeStyle = critical ? css("--on-critical") : css("--info");
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(x(now), y(c.ratio[k])); ctx.lineTo(w - 4, fy); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath(); ctx.arc(w - 4, fy, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+  }
+
+  function drawChart(k) {
+    const d = state.data, th = d.thresholds, now = d.t[k], span = 600;
+    const { ctx, w, h } = prepare($("chart"));
+    const narrow = w < 520;
+    const pad = { left: 44, right: narrow ? 12 : 150, top: narrow ? 46 : 14, bottom: 26 };
+    const k0 = Math.max(0, k - span);
+    const colours = [css("--s1"), css("--s2"), css("--s3"), css("--s4")];
+    let peak = th.critical * 1.2;
+    d.z.forEach((c) => { for (let j = k0; j <= k; j++) peak = Math.max(peak, c.ratio[j]); });
+    const top = Math.ceil(peak * 4) / 4;
+    const x = (t) => pad.left + ((t - (now - span)) / span) * (w - pad.left - pad.right);
+    const y = (v) => h - pad.bottom - (v / top) * (h - pad.top - pad.bottom);
+    const font = css("--font") || "sans-serif";
+    ctx.font = `500 12px ${font}`; ctx.textBaseline = "middle";
+    ctx.strokeStyle = css("--rule"); ctx.fillStyle = css("--muted"); ctx.lineWidth = 1;
+    for (let v = 0; v <= top + 1e-9; v += top > 2 ? 0.5 : 0.25) {
+      ctx.beginPath(); ctx.moveTo(pad.left, y(v)); ctx.lineTo(w - pad.right, y(v)); ctx.stroke();
+      ctx.textAlign = "right"; ctx.fillText(`${Math.round(v * 100)}%`, pad.left - 8, y(v));
+    }
+    ctx.textAlign = "center";
+    [[0, "10 min ago"], [300, "5 min ago"], [600, "now"]].forEach(([dt, label]) => {
+      ctx.fillText(label, Math.min(Math.max(x(now - span + dt), pad.left + 28), w - pad.right - 12), h - 9);
+    });
+    [[th.warning, css("--warning"), "Nearly full"], [th.critical, css("--critical"), "Capacity"]].forEach(([v, colour, label]) => {
+      ctx.strokeStyle = colour; ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(pad.left, y(v)); ctx.lineTo(w - pad.right, y(v)); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = colour; ctx.textAlign = "left";
+      ctx.font = `600 11px ${font}`; ctx.fillText(label, pad.left + 6, y(v) - 8); ctx.font = `500 12px ${font}`;
+    });
+    const ends = [];
+    d.zones.forEach((z, i) => {
+      const c = d.z[i];
+      if (k - k0 < 1) return;
+      ctx.strokeStyle = colours[i % colours.length]; ctx.lineWidth = 2; ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (let j = k0; j <= k; j++) (j === k0 ? ctx.moveTo(x(d.t[j]), y(c.ratio[j])) : ctx.lineTo(x(d.t[j]), y(c.ratio[j])));
+      ctx.stroke();
+      ends.push({ y: y(c.ratio[k]), label: `${z.name} ${Math.round(c.ratio[k] * 100)}%`, colour: colours[i % colours.length] });
+    });
+    if (narrow) {            // no room beside the plot: name the lines in rows above it
+      ctx.textAlign = "left"; ctx.font = `600 12px ${font}`;
+      let lx = 0, ly = 9;
+      ends.forEach((e) => {
+        const width = ctx.measureText(e.label).width;
+        if (lx + width > w) { lx = 0; ly += 17; }
+        ctx.fillStyle = e.colour; ctx.fillText(e.label, lx, ly);
+        lx += width + 14;
+      });
+      return;
+    }
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 15);
+    const overflow = ends.length ? ends[ends.length - 1].y - (h - pad.bottom) : 0;
+    if (overflow > 0) ends.forEach((e) => { e.y -= overflow; });
+    ctx.textAlign = "left"; ctx.font = `600 12px ${font}`;
+    ends.forEach((e) => { ctx.fillStyle = e.colour; ctx.fillText(e.label, w - pad.right + 8, e.y); });
+  }
+
+  // -------------------------------------------------------------- floor
+  const CLOTHES = ["#3a4a5c", "#3e628c", "#965646", "#588060", "#788c96", "#463c3c", "#966078", "#aa8458", "#6096aa", "#766e6e"];
+  const floorCanvas = document.createElement("canvas");
+  const heatCanvas = document.createElement("canvas");
+  heatCanvas.width = 80; heatCanvas.height = 48;
+
+  function paintFloor(scale) {
+    floorCanvas.width = W * scale; floorCanvas.height = H * scale;
+    const c = floorCanvas.getContext("2d");
+    c.setTransform(scale, 0, 0, scale, 0, 0);
+    c.fillStyle = "#e8e5e2"; c.fillRect(0, 0, W, H);
+    c.strokeStyle = "#e1ddda"; c.lineWidth = 1;
+    for (let x = 0; x <= W; x += 2 * PX) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+    for (let y = 0; y <= H; y += 2 * PX) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+    const block = (x1, y1, x2, y2, label) => {
+      c.fillStyle = "#a4aab0"; c.fillRect(x1 * PX, y1 * PX, (x2 - x1) * PX, (y2 - y1) * PX);
+      c.strokeStyle = "#8a9096"; c.strokeRect(x1 * PX + 0.5, y1 * PX + 0.5, (x2 - x1) * PX - 1, (y2 - y1) * PX - 1);
+      if (label) {
+        c.fillStyle = "#60646a"; c.font = `500 15px ${css("--font") || "sans-serif"}`; c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText(label, ((x1 + x2) / 2) * PX, ((y1 + y2) / 2) * PX);
+      }
+    };
+    ["Bookshop", "Pharmacy", "Shoes", "Electronics", "Toys", "Fashion"].forEach((name, i) => block(i * 40 / 6 + 0.08, 0, (i + 1) * 40 / 6 - 0.08, 3, name));
+    const edges = [0, 6, 12, 17.5, 22.5, 28, 34, 40];
+    ["Bakery", "Opticians", "Gifts", "", "Sports", "Home", "Phones"].forEach((name, i) => { if (name) block(edges[i] + 0.08, 21, edges[i + 1] - 0.08, 24, name); });
+    c.fillStyle = "#dbd8d6"; c.beginPath(); c.arc(20 * PX, 11.5 * PX, 4.6 * PX, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#cecac8"; c.lineWidth = 2; c.stroke();
+    c.fillStyle = "#aab2a8"; c.beginPath(); c.arc(20 * PX, 11.5 * PX, 0.9 * PX, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#b4bec4";
+    for (let tx = 31.0; tx < 38.6; tx += 1.9) for (let ty = 5.0; ty < 11.4; ty += 1.6) c.fillRect(tx * PX - 9, ty * PX - 9, 18, 18);
+    c.fillStyle = "#96a0aa";
+    [9.5, 14.5].forEach((by) => c.fillRect(3.5 * PX, by * PX - 6, 3 * PX, 12));
+    c.fillStyle = "#867e78";
+    c.fillRect(0, 9.6 * PX, 0.5 * PX, 4.8 * PX);
+    c.fillRect(W - 0.5 * PX, 14.5 * PX, 0.5 * PX, 4 * PX);
+    c.fillRect(17.6 * PX, H - 0.5 * PX, 4.8 * PX, 0.5 * PX);
+  }
+
+  function paintHeat(k) {
+    const gw = 80, gh = 48, grid = new Float32Array(gw * gh), tau = 20;
+    for (let j = Math.max(0, k - 60); j <= k; j++) {
+      const f = state.frames[j], weight = Math.exp(-(k - j) / tau);
+      for (let i = 0; i < f.n; i++) {
+        const gx = Math.floor(f.x[i] / 16), gy = Math.floor(f.y[i] / 16);
+        if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) grid[gy * gw + gx] += weight;
+      }
+    }
+    let peak = 0;
+    for (let i = 0; i < grid.length; i++) { grid[i] /= tau; peak = Math.max(peak, grid[i]); }
+    const norm = Math.max(peak, 0.25);
+    const stops = [[0, 0, 4], [87, 16, 110], [188, 55, 84], [249, 142, 9], [252, 255, 164]];
+    const c = heatCanvas.getContext("2d"), img = c.createImageData(gw, gh);
+    for (let i = 0; i < grid.length; i++) {
+      const v = Math.min(1, grid[i] / norm), s = v * 4, a = Math.min(3, Math.floor(s)), f = s - a;
+      for (let ch = 0; ch < 3; ch++) img.data[i * 4 + ch] = stops[a][ch] + (stops[a + 1][ch] - stops[a][ch]) * f;
+      img.data[i * 4 + 3] = Math.pow(v, 0.7) * 0.66 * 255;
+    }
+    c.putImageData(img, 0, 0);
+  }
+
+  function drawFloor(k, frac) {
+    const canvas = $("floor");
+    const scale = Math.min(2, Math.max(1, (canvas.clientWidth * (window.devicePixelRatio || 1)) / W));
+    if (canvas.width !== Math.round(W * scale)) { canvas.width = Math.round(W * scale); canvas.height = Math.round(H * scale); paintFloor(scale); }
+    const c = canvas.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(floorCanvas, 0, 0);
+    c.setTransform(scale, 0, 0, scale, 0, 0);
+    if (state.heatmap) { c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high"; c.drawImage(heatCanvas, 0, 0, W, H); }
+
+    const a = state.frames[k], b = state.frames[Math.min(k + 1, state.frames.length - 1)];
+    const people = [];
+    for (let i = 0; i < a.n; i++) {
+      const id = a.ids[i], j = b.index.get(id);
+      let x = a.x[i], y = a.y[i], heading = state.headings.get(id);
+      if (j !== undefined) {
+        const dx = b.x[j] - a.x[i], dy = b.y[j] - a.y[i];
+        x += dx * frac; y += dy * frac;
+        if (dx * dx + dy * dy > 9) { heading = Math.atan2(dy, dx); state.headings.set(id, heading); }
+      }
+      if (heading === undefined) { heading = ((id * 2654435761) % 628) / 100; state.headings.set(id, heading); }
+      people.push({ id, x, y, heading, tracked: a.tracked[i] });
+    }
+    people.sort((p, q) => p.y - q.y);
+    for (const p of people) {
+      const angle = p.heading + Math.PI / 2;
+      c.fillStyle = "#cbc7c4"; c.beginPath(); c.ellipse(p.x + 2, p.y + 3, 9, 6, angle, 0, Math.PI * 2); c.fill();
+      c.fillStyle = CLOTHES[p.id % CLOTHES.length]; c.beginPath(); c.ellipse(p.x, p.y, 9, 5, angle, 0, Math.PI * 2); c.fill();
+      c.fillStyle = p.id % 3 ? "#32343a" : "#967860"; c.beginPath(); c.arc(p.x, p.y, 4, 0, Math.PI * 2); c.fill();
+    }
+    if (state.markers) {
+      c.lineWidth = 2; c.strokeStyle = "#ffffff";
+      c.beginPath(); for (const p of people) if (p.tracked) { c.moveTo(p.x + 11, p.y); c.arc(p.x, p.y, 11, 0, Math.PI * 2); } c.stroke();
+      c.lineWidth = 1; c.strokeStyle = "#16203a";
+      c.beginPath(); for (const p of people) if (p.tracked) { c.moveTo(p.x + 11, p.y); c.arc(p.x, p.y, 11, 0, Math.PI * 2); } c.stroke();
+    }
+  }
+
+  // ----------------------------------------------------------- playback
+  function show(k) {
+    const snap = snapshotAt(k);
+    renderBoard(snap); renderZones(snap); renderOverlay(snap); renderAlerts(snap); renderDoors(snap);
+    drawChart(k); drawSparks(k);
+    if (state.heatmap) paintHeat(k);
+  }
+
+  function tick(now) {
+    const d = state.data;
+    if (d) {
+      const dt = Math.min(0.1, (now - state.last) / 1000);
+      if (state.playing) {
+        state.time += dt * state.speed;
+        if (state.time >= d.duration) state.time = 0;       // loop
+      }
+      const k = Math.min(d.t.length - 1, Math.max(0, Math.floor(state.time / d.key_s) - 1));
+      const frac = Math.min(1, Math.max(0, (state.time - d.t[k]) / d.key_s));
+      if (k !== state.k) {
+        state.k = k; show(k);
+        $("clock").textContent = clock(d.t[k]);
+        $("clock2").textContent = `${clock(d.t[k])} / ${clock(d.duration)}`;
+        if (document.activeElement !== $("seek")) $("seek").value = Math.round(state.time);
+      }
+      drawFloor(k, state.playing ? frac : 0);
+    }
+    state.last = now;
+    requestAnimationFrame(tick);
+  }
+
+  function setPlaying(on) {
+    state.playing = on;
+    $("play").textContent = on ? "Pause" : "Play";
+  }
+
+  // ------------------------------------------------------------- events
+  $("play").addEventListener("click", () => setPlaying(!state.playing));
+  $("seek").addEventListener("input", (e) => { state.time = Number(e.target.value); state.k = -1; state.headings = new Map(); });
+  $("speed").addEventListener("change", (e) => { state.speed = Number(e.target.value); });
+  $("t-markers").addEventListener("change", (e) => { state.markers = e.target.checked; });
+  $("t-heatmap").addEventListener("change", (e) => { state.heatmap = e.target.checked; if (state.heatmap && state.k >= 0) paintHeat(state.k); });
+  $("scenario").addEventListener("change", async (e) => {
+    const select = e.target, name = select.value;
+    select.disabled = true;
+    try {
+      await loadScenario(name);
+      state.time = 0;
+    } catch (err) {
+      $("scenario-note").textContent = `That recording could not be loaded (${err.message}). The previous one is still playing.`;
+      select.value = state.data.name;
+    } finally { select.disabled = false; }
+  });
+  $("alerts-active").addEventListener("click", (e) => {
+    const id = e.target.dataset.ack;
+    if (!id) return;
+    state.acked.add(Number(id));
+    if (state.k >= 0) renderAlerts(snapshotAt(state.k));
+  });
+  window.addEventListener("resize", () => { if (state.k >= 0) { drawChart(state.k); drawSparks(state.k); } });
+  const themeWatch = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+  if (themeWatch && themeWatch.addEventListener) themeWatch.addEventListener("change", () => { if (state.k >= 0) show(state.k); });
+
+  setPlaying(state.playing);
+  loadScenario("surge").then(() => { state.last = performance.now(); requestAnimationFrame(tick); });
+})();
+</script>
+<!--/BODY-->

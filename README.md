@@ -4,6 +4,8 @@ Real-time overcrowding detection for malls, stations and other public places, fr
 
 CrowdWatch counts the people in each area you care about, compares the count with what that area can safely hold, and tells you **before** it fills up: "Atrium is filling up: 37 of 60 now, rising by 24 a minute, 9 more heading this way. Full in about 1 minute."
 
+**[Open the live demo](https://madhavdeepakk.github.io/crowdwatch/)**: a recorded run of the real system, replayed in your browser.
+
 ![The dashboard during a simulated flash sale: the atrium is over capacity](docs/dashboard.png)
 
 It runs on a laptop CPU with no GPU, and stores only numbers: no video and no images of people.
@@ -224,7 +226,8 @@ crowdwatch/
   eval/           simulated evaluation, real-image benchmark, model training
   models/         the trained early-warning model (ONNX)
 configs/          the demo setup and an annotated example for a real camera
-docs/             evaluation and benchmark write-ups
+demo/             source and build script for the live demo page
+docs/             evaluation and benchmark write-ups, and the built demo page (served by GitHub Pages)
 tests/            the test suite, run with pytest
 ```
 
@@ -237,7 +240,11 @@ crowdwatch evaluate             # regenerate docs/evaluation.md (several minutes
 crowdwatch benchmark <folder>   # counting error on a labelled image set
 crowdwatch train-warning        # retrain the early-warning model (needs ".[train]")
 crowdwatch scenarios            # list the simulator scenarios
+crowdwatch record-demo          # re-record the runs the live demo page replays
+python demo/build.py            # rebuild docs/index.html from demo/page.html
 ```
+
+The live demo is a replay, not a second implementation: `record-demo` runs every scenario through the real pipeline and saves what it produced once a second, and the page draws that.
 
 A `Dockerfile` and a GitHub Actions workflow are included. Neither has been run yet: build the image and push to GitHub to confirm them.
 

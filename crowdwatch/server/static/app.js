@@ -232,10 +232,11 @@
     const past = state.log.filter((a) => !a.active && !activeIds.has(a.id) && a.run_id === snap.run_id).slice(0, 8);
     $("h-past").hidden = past.length === 0;
     $("alerts-past").innerHTML = past.map((a) => {
-      const what = a.kind === "predicted" ? "Early warning" : (a.level === "critical" ? "Over capacity" : "Nearly full");
+      const over = a.peak_ratio >= state.config.thresholds.critical;
+      const what = a.kind === "predicted" ? "Early warning" : (over ? "Over capacity" : "Nearly full");
       const peak = a.kind === "predicted" ? "" : `, peak ${Math.round(a.peak_count)} people (${Math.round(a.peak_ratio * 100)}%)`;
-      return `<div class="alert past" data-level="${a.level}">
-        ${glyph(a.level === "critical" ? 3 : a.level === "warning" ? 2 : "p")}
+      return `<div class="alert past" data-level="${a.kind === "predicted" ? "predicted" : (over ? "critical" : "warning")}">
+        ${glyph(a.kind === "predicted" ? "p" : (over ? 3 : 2))}
         <div class="alert-text">${esc(a.zone_name)}: ${what.toLowerCase()} for ${duration(a.ended_t - a.started_t)}${peak}</div>
         <div class="alert-meta"><span>Started ${when(a)}</span><span>Ended: ${esc(a.outcome || "resolved")}</span></div>
       </div>`;
